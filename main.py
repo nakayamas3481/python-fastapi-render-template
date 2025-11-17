@@ -9,3 +9,7 @@ async def health():
 @app.get("/")
 async def root():
   return {"hello": "world"}
+
+@app.get("/hi")
+async def hi():
+  return {"Hi": "Sota"}
