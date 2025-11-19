@@ -38,17 +38,17 @@ jobBoards = {
       {
         "title": "Junior Software Developer"
       }
-    ],
-    "atlas": [
-      {
-        "title": "Technical Arcitect",
-        "jobDescription":"ABC"
-      },
-      {
-        "title": "Junior Software Developer",
-        "jobDescription":"DEF"
-      }
     ]
+    # "atlas": [
+    #   {
+    #     "title": "Technical Arcitect",
+    #     "jobDescription":"ABC"
+    #   },
+    #   {
+    #     "title": "Junior Software Developer",
+    #     "jobDescription":"DEF"
+    #   }
+    # ]
 }
 
 @app.get("/job-boards/{slug}")
