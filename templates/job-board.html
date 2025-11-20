@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Job Board</title>
+</head>
+<body>
+  {% for job_post in job_board %}
+<div>
+  {% if job_post['img'] %}
+    <img src="/static/{{job_post['img']}}" />
+  {% endif %}
+<h2>{{job_post['title']}}</h2>
+<h4>{{job_post['jobDescription']}}</h4>
+</div>
+  {% endfor %}
+</body>
+</html>

@@ -1,6 +1,18 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 
 app = FastAPI()
+
+app.mount("/static" , StaticFiles(directory=r"static"), name = "ScreenshotTest") 
+
+templates = Jinja2Templates(directory="templates")
+
+# @app.get("/static-job-board.html")
+# async def static_job_board():
+#   return HTMLResponse(content ="<h3>Hello</h3>")
+
 
 @app.get("/health")
 async def health():
@@ -9,10 +21,6 @@ async def health():
 @app.get("/")
 async def root():
   return {"hello": "world"}
-
-@app.get("/hi")
-async def hi():
-  return {"Hi": "Sota"}
 
 @app.get("/add/")
 async def add(x: int = 0, y: int = 0):
@@ -24,35 +32,58 @@ async def multiply(x: int = 0, y: int = 0):
 
 jobBoards = {
     "acme": [
-      {
-        "title": "Customer Support Executive"  
-      },
-      {
-        "title": "Project Manager"
-      }
+        {
+            "img": "shopify.jpg",
+            "alt": "ACME",
+            "title": "Customer Support Executive",
+            "jobDescription": "The Customer Support Executive is responsible for maximizing customer satisfaction by handling inquiries, resolving issues, and providing guidance related to products and services. Through prompt and courteous communication, the role enhances the overall customer experience and contributes to building long-term customer relationships."
+        },
+        {
+            "title": "Project Manager",
+            "jobDescription": "The Project Manager is responsible for planning, executing, and delivering projects within defined scope, timelines, and budget. By coordinating cross-functional teams, managing risks, and ensuring effective communication with stakeholders, the Project Manager ensures successful project outcomes and drives operational excellence."
+        }
     ],
     "bcg": [
-      {
-         "title": "Technical Arcitect"
-      },
-      {
-        "title": "Junior Software Developer"
-      }
+        {
+            "img": "shopify.jpg",
+            "alt": "BCG",
+            "title": "Technical Architect",
+            "jobDescription": "The Technical Architect is responsible for designing and overseeing the technical architecture of systems and solutions. By providing technical leadership, ensuring alignment with business requirements, and guiding development teams, the architect delivers scalable, secure, and high-quality technology solutions that support organizational goals."
+        },
+        {
+            "title": "Junior Software Developer",
+            "jobDescription": "The Junior Software Developer supports the development and maintenance of software applications under the guidance of senior engineers. This role involves writing clean code, fixing bugs, performing tests, and learning best practices to contribute to building reliable and efficient software solutions."
+        }
+    ],
+    "atlas": [
+        {
+            "img": "shopify.jpg",
+            "alt": "ATLAS",
+            "title": "Technical Architect",
+            "jobDescription": "The Technical Architect is responsible for designing and overseeing the technical architecture of systems and solutions. By providing technical leadership, ensuring alignment with business requirements, and guiding development teams, the architect delivers scalable, secure, and high-quality technology solutions that support organizational goals."
+        },
+        {
+            "title": "Junior Software Developer",
+            "jobDescription": "The Junior Software Developer supports the development and maintenance of software applications under the guidance of senior engineers. This role involves writing clean code, fixing bugs, performing tests, and learning best practices to contribute to building reliable and efficient software solutions."
+        }
     ]
-    # "atlas": [
-    #   {
-    #     "title": "Technical Arcitect",
-    #     "jobDescription":"ABC"
-    #   },
-    #   {
-    #     "title": "Junior Software Developer",
-    #     "jobDescription":"DEF"
-    #   }
-    # ]
 }
 
+
 @app.get("/job-boards/{slug}")
-async def company_job_board(slug : str):
+async def company_job_board(request: Request, slug : str):
 #  if slug not in jobBoards:
 #         raise HTTPException(status_code=404, detail="Item not found")
- return jobBoards[slug]
+ job_board = jobBoards[slug]
+ return templates.TemplateResponse(
+        request=request, name="job-board.html", context={"job_board": job_board}
+    )
+
+@app.get("/api/job-boards/{slug}")
+async def company_job_board(request: Request, slug : str):
+#  if slug not in jobBoards:
+#         raise HTTPException(status_code=404, detail="Item not found")
+ job_board = jobBoards[slug]
+ return templates.TemplateResponse(
+        request=request, name="job-board.html", context={"job_board": job_board}
+    )
