@@ -1,11 +1,13 @@
+from typing import List
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel
 
 app = FastAPI()
 
-app.mount("/static" , StaticFiles(directory=r"static"), name = "ScreenshotTest") 
+app.mount("/app" , StaticFiles(directory="frontend/dist"), name = "app") 
 
 templates = Jinja2Templates(directory="templates")
 
@@ -84,6 +86,26 @@ async def company_job_board(request: Request, slug : str):
 #  if slug not in jobBoards:
 #         raise HTTPException(status_code=404, detail="Item not found")
  job_board = jobBoards[slug]
- return templates.TemplateResponse(
-        request=request, name="job-board.html", context={"job_board": job_board}
-    )
+ return job_board
+
+class Job(BaseModel):
+    id: int
+    title: str
+    department: str
+    manager: str
+    location: str
+    open: str
+    close: str
+    status: str
+
+# メモリ上に求人情報を保存するためのリスト
+jobs: List[Job] = []
+
+@app.post("/jobs", response_model=Job)
+async def create_job(job: Job):
+    jobs.append(job)
+    return job
+
+@app.get("/jobs", response_model=List[Job])
+async def get_jobs():
+    return jobs
