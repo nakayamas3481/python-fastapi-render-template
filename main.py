@@ -8,6 +8,8 @@ from config import settings
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
+from db import get_db_session
+
 app = FastAPI()
 
 app.mount("/app" , StaticFiles(directory="frontend/dist"), name = "app") 
@@ -22,12 +24,11 @@ templates = Jinja2Templates(directory="templates")
 @app.get("/health")
 async def health():
   try:
-    engine = create_engine(str(settings.DATABASE_URL))
-    with sessionmaker(bind=engine)() as session:
+    with get_db_session() as session:
         session.execute(text("SELECT 1"))
-        return {"DATABASE": "ok"}
+        return {"database": "ok"}
   except:
-    return {"DATABASE": "NG"}
+    return {"database": "down"}
 
 @app.get("/")
 async def root():
