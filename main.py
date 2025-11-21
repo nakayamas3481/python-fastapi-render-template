@@ -7,8 +7,9 @@ from pydantic import BaseModel
 from config import settings
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
-
 from db import get_db_session
+from models import JobBoard
+from models import JobPost
 
 app = FastAPI()
 
@@ -29,6 +30,12 @@ async def health():
         return {"database": "ok"}
   except:
     return {"database": "down"}
+  
+@app.get("/api/job-boards")
+async def api_job_boards():
+   with get_db_session() as session:
+      jobBoards = session.query(JobBoard).all()
+      return jobBoards
 
 @app.get("/")
 async def root():
@@ -80,6 +87,30 @@ jobBoards = {
         }
     ]
 }
+
+@app.get("/api/job-boards/{job_board_id}/job-posts")
+async def api_company_job_board(job_board_id):
+  with get_db_session() as session:
+     jobPosts = session.query(JobPost).filter(JobPost.job_board_id.__eq__(job_board_id)).all()
+     return jobPosts
+
+
+#   Cartesian Join vs Inner Join
+
+# @app.get("/api/job-boards/{slug}")
+# async def api_company_job_board(slug):
+#   with get_db_session() as session:
+#      jobPosts = session.query(JobPost).filter(JobBoard.slug.__eq__(slug)).all()
+#      return jobPosts
+  
+@app.get("/api/job-boards/{slug}")
+async def api_company_job_board(slug):
+  with get_db_session() as session:
+     jobPosts = session.query(JobPost) \
+        .join(JobPost.job_board) \
+        .filter(JobBoard.slug.__eq__(slug)) \
+        .all()
+     return jobPosts
 
 
 @app.get("/job-boards/{slug}")
