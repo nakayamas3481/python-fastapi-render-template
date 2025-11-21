@@ -4,6 +4,9 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
+from config import settings
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import sessionmaker
 
 app = FastAPI()
 
@@ -11,14 +14,20 @@ app.mount("/app" , StaticFiles(directory="frontend/dist"), name = "app")
 
 templates = Jinja2Templates(directory="templates")
 
-# @app.get("/static-job-board.html")
-# async def static_job_board():
-#   return HTMLResponse(content ="<h3>Hello</h3>")
-
+# engine = create_engine(str(settings.DATABASE_URL))
+# with sessionmaker(bind=engine)() as session:
+#     session.execute(text("SELECT 1"))
+#     print("All good!")
 
 @app.get("/health")
 async def health():
-  return {"status": "ok"}
+  try:
+    engine = create_engine(str(settings.DATABASE_URL))
+    with sessionmaker(bind=engine)() as session:
+        session.execute(text("SELECT 1"))
+        return {"DATABASE": "ok"}
+  except:
+    return {"DATABASE": "NG"}
 
 @app.get("/")
 async def root():
