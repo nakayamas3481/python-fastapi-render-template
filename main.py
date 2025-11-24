@@ -22,7 +22,16 @@ templates = Jinja2Templates(directory="templates")
 #     session.execute(text("SELECT 1"))
 #     print("All good!")
 
-@app.get("/health")
+# @app.get("/health")
+# async def health():
+#   try:
+#     with get_db_session() as session:
+#         session.execute(text("SELECT 1"))
+#         return {"database": "ok"}
+#   except:
+#     return {"database": "down"}
+
+@app.get("/api/health")
 async def health():
   try:
     with get_db_session() as session:
