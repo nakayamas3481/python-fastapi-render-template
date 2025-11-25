@@ -1,35 +1,25 @@
-from typing import List
-from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import HTMLResponse
+import os
+from typing import Annotated, List
+from fastapi import Body, FastAPI, File, Form, Request, HTTPException, UploadFile
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 from config import settings
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from db import get_db_session
 from models import JobBoard
 from models import JobPost
+from upload import upload_file
+
 
 app = FastAPI()
 
-app.mount("/app" , StaticFiles(directory="frontend/dist"), name = "app") 
-
 templates = Jinja2Templates(directory="templates")
 
-# engine = create_engine(str(settings.DATABASE_URL))
-# with sessionmaker(bind=engine)() as session:
-#     session.execute(text("SELECT 1"))
-#     print("All good!")
-
-# @app.get("/health")
-# async def health():
-#   try:
-#     with get_db_session() as session:
-#         session.execute(text("SELECT 1"))
-#         return {"database": "ok"}
-#   except:
-#     return {"database": "down"}
+app.mount("/assets", StaticFiles(directory="frontend/build/client/assets"))
+app.mount("/uploads", StaticFiles(directory="uploads"))
 
 @app.get("/api/health")
 async def health():
@@ -44,19 +34,62 @@ async def health():
 async def api_job_boards():
    with get_db_session() as session:
       jobBoards = session.query(JobBoard).all()
-      return jobBoards
+   return jobBoards  
 
 @app.get("/")
 async def root():
   return {"hello": "world"}
 
-@app.get("/add/")
-async def add(x: int = 0, y: int = 0):
-  return {"result": x+y}
+class JobBoardForm(BaseModel):
+    slug : str = Field(..., min_length=3, max_length=20)
+    logo : UploadFile = File(...)
 
-@app.get("/multiply/")
-async def multiply(x: int = 0, y: int = 0):
-  return {"result": x*y}
+    @field_validator('slug')
+    @classmethod
+    def to_lowercase(cls, v):
+       return v.lower()
+
+@app.post("/api/add")
+async def api_create_new_add(x: Annotated[int, Form()], y: Annotated[int, Form()]):
+    return {"slug":x+y}
+
+@app.post("/api/json/add")
+async def api_create_new_json_add(
+    x: Annotated[int, Body()],
+    y: Annotated[int, Body()],
+):
+    return {"slug": x + y}
+
+@app.post("/api/job-boards")
+async def api_create_new_job_board(job_board_form: Annotated[JobBoardForm, Form()]):
+    logo_contents = await job_board_form.logo.read()
+    file_url = upload_file("company-logos", \
+                           job_board_form.logo.filename, \
+                           logo_contents, \
+                           job_board_form.logo.content_type)
+    with get_db_session() as session:
+        new_job_board = JobBoard(slug=job_board_form.slug, logo_url=file_url)
+        session.add(new_job_board)
+        session.commit()
+        session.refresh(new_job_board)
+        return new_job_board
+
+@app.get("/api/job-boards/{job_board_id}/job-posts")
+async def api_company_job_board(job_board_id):
+  with get_db_session() as session:
+     jobPosts = session.query(JobPost).filter(JobPost.job_board_id.__eq__(job_board_id)).all()
+     return jobPosts
+
+# @app.post("/add")
+# async def add(data: Dict[str, int]):
+#   result = data["x"] + data["y"]
+#   return {
+#     "result": result
+#   }
+
+# @app.get("/add/")
+# async def add(x: int = 0, y: int = 0):
+#   return {"result": x+y}
 
 jobBoards = {
     "acme": [
@@ -96,14 +129,7 @@ jobBoards = {
         }
     ]
 }
-
-@app.get("/api/job-boards/{job_board_id}/job-posts")
-async def api_company_job_board(job_board_id):
-  with get_db_session() as session:
-     jobPosts = session.query(JobPost).filter(JobPost.job_board_id.__eq__(job_board_id)).all()
-     return jobPosts
-
-
+  
 #   Cartesian Join vs Inner Join
 
 # @app.get("/api/job-boards/{slug}")
@@ -138,24 +164,29 @@ async def company_job_board(request: Request, slug : str):
  job_board = jobBoards[slug]
  return job_board
 
-class Job(BaseModel):
-    id: int
-    title: str
-    department: str
-    manager: str
-    location: str
-    open: str
-    close: str
-    status: str
+# class Job(BaseModel):
+#     id: int
+#     title: str
+#     department: str
+#     manager: str
+#     location: str
+#     open: str
+#     close: str
+#     status: str
 
-# メモリ上に求人情報を保存するためのリスト
-jobs: List[Job] = []
+# # メモリ上に求人情報を保存するためのリスト
+# jobs: List[Job] = []
 
-@app.post("/jobs", response_model=Job)
-async def create_job(job: Job):
-    jobs.append(job)
-    return job
+# @app.post("/jobs", response_model=Job)
+# async def create_job(job: Job):
+#     jobs.append(job)
+#     return job
 
-@app.get("/jobs", response_model=List[Job])
-async def get_jobs():
-    return jobs
+# @app.get("/jobs", response_model=List[Job])
+# async def get_jobs():
+#     return jobs
+
+@app.get("/{full_path:path}")
+async def catch_all(full_path: str):
+  indexFilePath = os.path.join("frontend", "build", "client", "index.html")
+  return FileResponse(path=indexFilePath, media_type="text/html")
