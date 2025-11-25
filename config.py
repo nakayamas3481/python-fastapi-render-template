@@ -5,7 +5,7 @@ class Settings(BaseSettings):
     DATABASE_URL: AnyUrl
     PRODUCTION: bool
     SUPABASE_URL: AnyUrl
-    SUPABASE_KEY: SecretStr
+    SUPABASE_KEY: str
    
    
     class Config:
