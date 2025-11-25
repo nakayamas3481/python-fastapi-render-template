@@ -11,15 +11,17 @@ from sqlalchemy.orm import sessionmaker
 from db import get_db_session
 from models import JobBoard
 from models import JobPost
-from upload import upload_file
-
+from file_storage import upload_file
 
 app = FastAPI()
 
 templates = Jinja2Templates(directory="templates")
 
 app.mount("/assets", StaticFiles(directory="frontend/build/client/assets"))
-app.mount("/uploads", StaticFiles(directory="uploads"))
+
+
+if not settings.PRODUCTION:
+    app.mount("/uploads", StaticFiles(directory="uploads"))
 
 @app.get("/api/health")
 async def health():

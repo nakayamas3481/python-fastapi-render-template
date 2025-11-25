@@ -1,11 +1,16 @@
 from pydantic_settings import BaseSettings
-from pydantic import AnyUrl
+from pydantic import AnyUrl, SecretStr
 
 class Settings(BaseSettings):
     DATABASE_URL: AnyUrl
-
+    PRODUCTION: bool
+    SUPABASE_URL: AnyUrl
+    SUPABASE_KEY: SecretStr
+   
+   
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
+       
 
 settings = Settings()
