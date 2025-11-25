@@ -1,0 +1,21 @@
+meta {
+  name: Job Posts
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{BASE_URL}}/api/job-boards
+  body: multipartForm
+  auth: inherit
+}
+
+body:multipart-form {
+  slug: test10
+  logo: @file(C:\Users\sota.nakayama\python-fastapi-render-template\logos\testin.jpg)
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
