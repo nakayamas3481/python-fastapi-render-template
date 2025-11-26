@@ -1,0 +1,24 @@
+meta {
+  name: Job Applications
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{BASE_URL}}/api/job-applications
+  body: multipartForm
+  auth: inherit
+}
+
+body:multipart-form {
+  firtst_name: Sota
+  last_name: Nakayama
+  email: test@gmail.com
+  job_post_id: 4
+  resume: @file(C:\Users\sota.nakayama\Desktop\memo\1125\resume.txt)
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

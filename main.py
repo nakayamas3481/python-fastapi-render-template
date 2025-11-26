@@ -1,5 +1,6 @@
 import os
 from typing import Annotated, List
+import uuid
 from fastapi import Body, FastAPI, File, Form, Request, HTTPException, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -9,7 +10,7 @@ from config import settings
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from db import get_db_session
-from models import JobBoard
+from models import JobApplication, JobBoard
 from models import JobPost
 from file_storage import upload_file
 
@@ -65,8 +66,13 @@ async def api_create_new_json_add(
 @app.post("/api/job-boards")
 async def api_create_new_job_board(job_board_form: Annotated[JobBoardForm, Form()]):
     logo_contents = await job_board_form.logo.read()
+
+    _, ext = os.path.splitext(job_board_form.logo.filename)
+    random_name = uuid.uuid4().hex
+    randomized_filename = f"{random_name}{ext}"
+
     file_url = upload_file("company-logos", \
-                           job_board_form.logo.filename, \
+                           randomized_filename, \
                            logo_contents, \
                            job_board_form.logo.content_type)
     with get_db_session() as session:
@@ -81,6 +87,27 @@ async def api_company_job_board(job_board_id):
   with get_db_session() as session:
      jobPosts = session.query(JobPost).filter(JobPost.job_board_id.__eq__(job_board_id)).all()
      return jobPosts
+  
+class JobApplicationForm(BaseModel):
+    firtst_name : str = Field(..., min_length=1, max_length=20)
+    last_name : str = Field(..., min_length=1, max_length=20)
+    email : str = Field(..., min_length=1, max_length=40)
+    job_post_id : str = Field(..., min_length=1, max_length=20)
+    resume : UploadFile = File(...)
+  
+@app.post("/api/job-applications")
+async def api_create_new_job_application(job_application_form: Annotated[JobApplicationForm, Form()]):
+    resume_contents = await job_application_form.resume.read()
+    file_url = upload_file("company-resumes", \
+                           job_application_form.resume.filename, \
+                           resume_contents, \
+                           job_application_form.resume.content_type)
+    with get_db_session() as session:
+        new_job_application = JobApplication(firtst_name=job_application_form.firtst_name, last_name=job_application_form.last_name, email=job_application_form.email,  job_post_id=job_application_form.job_post_id, resume_url=file_url)
+        session.add(new_job_application)
+        session.commit()
+        session.refresh(new_job_application)
+        return new_job_application
 
 # @app.post("/add")
 # async def add(data: Dict[str, int]):

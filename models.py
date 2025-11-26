@@ -19,3 +19,12 @@ class JobPost(Base):
   job_board_id = Column(Integer, ForeignKey("job_boards.id"),  nullable=False)
   job_board = relationship("JobBoard")
  
+class JobApplication(Base):
+  __tablename__ = 'job_applications'
+  id = Column(Integer, primary_key=True)
+  firtst_name = Column(String, nullable=False)
+  last_name = Column(String, nullable=False)
+  email = Column(String, nullable=False)
+  resume_url = Column(String, nullable=True)
+  job_post_id = Column(Integer, ForeignKey("job_posts.id"),  nullable=False)
+  job_post = relationship("JobPost")
