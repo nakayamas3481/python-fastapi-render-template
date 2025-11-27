@@ -6,11 +6,12 @@ class Settings(BaseSettings):
     PRODUCTION: bool
     SUPABASE_URL: AnyUrl
     SUPABASE_KEY: str
-   
+    ADMIN_USERNAME: str
+    ADMIN_PASSWORD: str
+    RESEND_API_KEY: str
    
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
        
-
 settings = Settings()

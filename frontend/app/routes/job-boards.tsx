@@ -1,5 +1,6 @@
-import { Link } from "react-router";
+import { Link, useFetcher } from "react-router";
 import { Avatar, AvatarImage } from "~/components/ui/avatar";
+import { Button } from "~/components/ui/button";
 import {
   Table, TableBody, TableCell, TableHead,
   TableHeader, TableRow
@@ -12,6 +13,7 @@ export async function clientLoader() {
 }
 
 export default function JobBoards({ loaderData }) {
+  const fetcher = useFetcher();
   return (
     <div className="min-h-screen bg-background">
       {/* ページ全体のコンテナ */}
@@ -24,10 +26,11 @@ export default function JobBoards({ loaderData }) {
               Job Boards
             </h1>
           </div>
-
           {/* 右上に何か置く想定（あとで検索やボタン追加できる） */}
           <div className="text-sm text-muted-foreground">
-            Total: {loaderData.jobBoards.length}
+              <Button>
+                <Link to="/job-boards/new">Add New Job Board</Link>
+              </Button>
           </div>
         </div>
 
@@ -60,6 +63,25 @@ export default function JobBoards({ loaderData }) {
                       {jobBoard.slug}
                     </Link>
                   </TableCell>
+                  <TableCell className="align-middle">
+                      <Button variant="outline" size="sm" asChild>
+                        <Link to={`/job-boards/${jobBoard.id}/edit`}>Edit</Link>
+                      </Button>
+                  </TableCell>
+                  <TableCell className="align-middle">
+                    <fetcher.Form method="post"
+                      onSubmit={(event) => {
+                      const response = confirm(
+                        `Please confirm you want to delete this job board '${jobBoard.slug}'.`,
+                      );
+                      if (!response) {
+                        event.preventDefault();
+                      }
+                    }}>
+                      <input name="job_board_id" type="hidden" value={jobBoard.id}></input>
+                      <button>Delete</button>
+                    </fetcher.Form>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -69,4 +91,12 @@ export default function JobBoards({ loaderData }) {
       </div>
     </div>
   );
+}
+
+export async function clientAction({ request}: Route.ClientActionArgs) {
+  const formData = await request.formData()
+  const jobBoardId = formData.get('job_board_id')
+  await fetch(`/api/job-boards/${jobBoardId}`, {
+    method: 'DELETE',
+  })
 }

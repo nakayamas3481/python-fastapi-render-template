@@ -1,0 +1,16 @@
+meta {
+  name: Dealete Job Boards
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{BASE_URL}}/api/job-boards/13
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

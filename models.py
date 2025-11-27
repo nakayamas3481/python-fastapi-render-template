@@ -1,4 +1,4 @@
-from sqlalchemy import Column, ForeignKey, Integer, String
+from sqlalchemy import Column, Date, ForeignKey, Integer, String
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import relationship
 
@@ -18,6 +18,7 @@ class JobPost(Base):
   description = Column(String, nullable=False)
   job_board_id = Column(Integer, ForeignKey("job_boards.id"),  nullable=False)
   job_board = relationship("JobBoard")
+  close_date = Column(Date, nullable=True)
  
 class JobApplication(Base):
   __tablename__ = 'job_applications'

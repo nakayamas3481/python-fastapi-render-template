@@ -1,15 +1,18 @@
+from datetime import date
 import os
-from typing import Annotated, List
+from typing import Annotated, List, Optional
 import uuid
-from fastapi import Body, FastAPI, File, Form, Request, HTTPException, UploadFile
+from fastapi import BackgroundTasks, Body, FastAPI, File, Form, Request, HTTPException, Response, UploadFile, status
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field, field_validator
+from auth import authenticate_admin, is_admin
 from config import settings
-from sqlalchemy import create_engine, text
+from sqlalchemy import Date, create_engine, select, text
 from sqlalchemy.orm import sessionmaker
 from db import get_db_session
+from emailer import send_email
 from models import JobApplication, JobBoard
 from models import JobPost
 from file_storage import upload_file
@@ -64,7 +67,14 @@ async def api_create_new_json_add(
     return {"slug": x + y}
 
 @app.post("/api/job-boards")
-async def api_create_new_job_board(job_board_form: Annotated[JobBoardForm, Form()]):
+async def api_create_new_job_board(request: Request, job_board_form: Annotated[JobBoardForm, Form()]):
+    admin_token = request.cookies.get("admin_session")
+    if not admin_token or not is_admin(admin_token):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin only"
+        )
+
     logo_contents = await job_board_form.logo.read()
 
     _, ext = os.path.splitext(job_board_form.logo.filename)
@@ -81,6 +91,39 @@ async def api_create_new_job_board(job_board_form: Annotated[JobBoardForm, Form(
         session.commit()
         session.refresh(new_job_board)
         return new_job_board
+    
+@app.put("/api/job-boards/{job_board_id}")
+async def api_update_job_board(job_board_id: int, slug: Annotated[Optional[str], Form()] = None, logo: Annotated[Optional[UploadFile], File()] = None,):
+   with get_db_session() as session:
+        jb = session.get(JobBoard, job_board_id)
+        if not jb:
+            raise HTTPException(status_code=404, detail="JobBoard not found")
+        if slug is not None:
+            jb.slug = slug
+        if logo is not None:
+            logo_contents = await logo.read()
+            _, ext = os.path.splitext(logo.filename)
+            randomized_filename = f"{uuid.uuid4().hex}{ext}"
+            jb.logo_url = upload_file(
+                "company-logos",
+                randomized_filename,
+                logo_contents,
+                logo.content_type,
+            )
+
+        session.commit()
+        session.refresh(jb)
+        return jb
+   
+@app.delete("/api/job-boards/{job_board_id}")
+async def api_delete_job_board(job_board_id: int):
+    with get_db_session() as session:
+        jb = session.get(JobBoard, job_board_id)
+        if not jb:
+            raise HTTPException(status_code=404, detail="JobBoard not found")
+        session.delete(jb)
+        session.commit()
+        return jb
 
 @app.get("/api/job-boards/{job_board_id}/job-posts")
 async def api_company_job_board(job_board_id):
@@ -96,18 +139,57 @@ class JobApplicationForm(BaseModel):
     resume : UploadFile = File(...)
   
 @app.post("/api/job-applications")
-async def api_create_new_job_application(job_application_form: Annotated[JobApplicationForm, Form()]):
+async def api_create_new_job_application(job_application_form: Annotated[JobApplicationForm, Form()],background_tasks: BackgroundTasks):
     resume_contents = await job_application_form.resume.read()
     file_url = upload_file("company-resumes", \
                            job_application_form.resume.filename, \
                            resume_contents, \
                            job_application_form.resume.content_type)
     with get_db_session() as session:
+
+        job_post = session.execute(
+            select(JobPost).where(JobPost.id == job_application_form.job_post_id)
+        ).scalar_one_or_none()
+
+        if job_post is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Job post not found")
+
+        if job_post.close_date is not None and job_post.close_date < Date.today():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="This job post is closed",
+        )
         new_job_application = JobApplication(firtst_name=job_application_form.firtst_name, last_name=job_application_form.last_name, email=job_application_form.email,  job_post_id=job_application_form.job_post_id, resume_url=file_url)
+
         session.add(new_job_application)
         session.commit()
         session.refresh(new_job_application)
+
+        background_tasks.add_task(
+            send_email,
+            new_job_application.email,
+            "Acknowledgement",
+            "We have received your job application"
+        )
+
         return new_job_application
+    
+class AdminLoginForm(BaseModel):
+   username : str
+   password : str
+
+@app.post("/api/admin-login")
+async def admin_login(response: Response, admin_login_form: Annotated[AdminLoginForm, Form()]):
+   auth_response = authenticate_admin(admin_login_form.username, admin_login_form.password)
+   if auth_response is not None:
+      secure = settings.PRODUCTION
+      response.set_cookie(key="admin_session", value=auth_response, httponly=True, secure=secure, samesite="Lax")
+      return {}
+   else:
+      raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
+   
 
 # @app.post("/add")
 # async def add(data: Dict[str, int]):

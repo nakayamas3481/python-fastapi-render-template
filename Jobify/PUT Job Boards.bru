@@ -1,0 +1,21 @@
+meta {
+  name: PUT Job Boards
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{BASE_URL}}/api/job-boards/5
+  body: multipartForm
+  auth: inherit
+}
+
+body:multipart-form {
+  slug: testin
+  logo: @file()
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
