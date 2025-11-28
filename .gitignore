@@ -205,3 +205,7 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# frontend の lib は含める
+!frontend/app/lib/
+!frontend/app/lib/**/*
