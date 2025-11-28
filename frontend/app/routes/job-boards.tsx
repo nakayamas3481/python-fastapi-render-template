@@ -1,15 +1,18 @@
-import { Link, useFetcher } from "react-router";
+import { Link, useFetcher, type ClientLoaderFunctionArgs } from "react-router";
 import { Avatar, AvatarImage } from "~/components/ui/avatar";
 import { Button } from "~/components/ui/button";
 import {
   Table, TableBody, TableCell, TableHead,
   TableHeader, TableRow
 } from "~/components/ui/table";
+import { userContext } from "~/context";
 
-export async function clientLoader() {
+export async function clientLoader({context} : ClientLoaderFunctionArgs) {
+  const me = context.get(userContext)
+  const isAdmin = me && me.is_admin
   const res = await fetch(`/api/job-boards`);
   const jobBoards = await res.json();
-  return { jobBoards };
+  return {jobBoards, isAdmin};
 }
 
 export default function JobBoards({ loaderData }) {
@@ -28,12 +31,15 @@ export default function JobBoards({ loaderData }) {
           </div>
           {/* 右上に何か置く想定（あとで検索やボタン追加できる） */}
           <div className="text-sm text-muted-foreground">
-              <Button>
-                <Link to="/job-boards/new">Add New Job Board</Link>
-              </Button>
+              {loaderData.isAdmin
+                ? <div className="float-right">
+                <Button>
+                  <Link to="/job-boards/new">Add New Job Board</Link>
+                </Button>
+              </div>
+              : <></>}
           </div>
         </div>
-
         {/* カード（中身を“製品っぽく”見せる枠） */}
         <div className="rounded-xl border bg-card shadow-sm">
           <Table className="w-full">
@@ -43,7 +49,6 @@ export default function JobBoards({ loaderData }) {
                 <TableHead>Company</TableHead>
               </TableRow>
             </TableHeader>
-
             <TableBody>
               {loaderData.jobBoards.map((jobBoard) => (
                 <TableRow key={jobBoard.id} className="h-16">
@@ -64,30 +69,36 @@ export default function JobBoards({ loaderData }) {
                     </Link>
                   </TableCell>
                   <TableCell className="align-middle">
-                      <Button variant="outline" size="sm" asChild>
-                        <Link to={`/job-boards/${jobBoard.id}/edit`}>Edit</Link>
-                      </Button>
+                    {loaderData.isAdmin
+                      ? <div className="float-right">
+                        <Button variant="outline" size="sm" asChild>
+                          <Link to={`/job-boards/${jobBoard.id}/edit`}>Edit</Link>
+                        </Button>
+                      </div>
+                    : <></>}
                   </TableCell>
                   <TableCell className="align-middle">
-                    <fetcher.Form method="post"
-                      onSubmit={(event) => {
-                      const response = confirm(
-                        `Please confirm you want to delete this job board '${jobBoard.slug}'.`,
-                      );
-                      if (!response) {
-                        event.preventDefault();
-                      }
-                    }}>
-                      <input name="job_board_id" type="hidden" value={jobBoard.id}></input>
-                      <button>Delete</button>
-                    </fetcher.Form>
+                    {loaderData.isAdmin
+                      ?
+                      <fetcher.Form method="post"
+                        onSubmit={(event) => {
+                        const response = confirm(
+                          `Please confirm you want to delete this job board '${jobBoard.slug}'.`,
+                        );
+                        if (!response) {
+                          event.preventDefault();
+                        }
+                      }}>
+                        <input name="job_board_id" type="hidden" value={jobBoard.id}></input>
+                        <button>Delete</button>
+                      </fetcher.Form>
+                    : <></>}
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </div>
-
       </div>
     </div>
   );

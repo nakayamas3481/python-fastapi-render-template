@@ -7,17 +7,20 @@ from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field, field_validator
-from auth import authenticate_admin, is_admin
+from auth import AdminAuthzMiddleware, AdminSessionMiddleware, authenticate_admin, delete_admin_session, is_admin
 from config import settings
 from sqlalchemy import Date, create_engine, select, text
 from sqlalchemy.orm import sessionmaker
 from db import get_db_session
 from emailer import send_email
+from job_application_tasks import evaluate_resume
 from models import JobApplication, JobBoard
 from models import JobPost
 from file_storage import upload_file
 
 app = FastAPI()
+app.add_middleware(AdminAuthzMiddleware)
+app.add_middleware(AdminSessionMiddleware)
 
 templates = Jinja2Templates(directory="templates")
 
@@ -173,7 +176,7 @@ async def api_create_new_job_application(job_application_form: Annotated[JobAppl
             "Acknowledgement",
             "We have received your job application"
         )
-
+        background_tasks.add_task(evaluate_resume, resume_contents, job_post.description, new_job_application.id)
         return new_job_application
     
 class AdminLoginForm(BaseModel):
@@ -190,6 +193,18 @@ async def admin_login(response: Response, admin_login_form: Annotated[AdminLogin
    else:
       raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
    
+@app.get("/api/me")
+async def me(req: Request):
+    return {"is_admin": req.state.is_admin}
+   
+@app.post("/api/admin-logout")
+async def admin_login(request: Request, response: Response) :
+    delete_admin_session(request.cookies.get("admin_session"))
+    secure = settings.PRODUCTION
+    response.delete_cookie(key="admin_session",
+        httponly=True, secure=secure,
+        samesite="Lax")
+    return {}
 
 # @app.post("/add")
 # async def add(data: Dict[str, int]):

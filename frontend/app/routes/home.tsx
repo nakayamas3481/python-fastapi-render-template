@@ -1,4 +1,4 @@
-import { Link } from "react-router";
+import { Link, NavLink } from "react-router";
 
 export default function Home({}) {
     console.log("Hello")
@@ -6,6 +6,7 @@ export default function Home({}) {
         <main>
             <h1 className="text-3xl font-medium">Welcome to Jobify </h1>
             <p className="mt-4">Your search for your next job stop here! </p>
+            <NavLink to="/admin-login">Login</NavLink>
         </main>
     )
 }

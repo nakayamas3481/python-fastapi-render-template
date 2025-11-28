@@ -3,6 +3,8 @@ import { type RouteConfig, layout, route } from "@react-router/dev/routes";
 export default [
     layout("layout/default.tsx",[
         route("/", "routes/home.tsx"),
+        route("/admin-login", "routes/admin_login_form.tsx"),
+        route("/admin-logout", "routes/admin_logout.tsx"),
         route("job-boards", "routes/job-boards.tsx"),
         route("job-boards/:jobBoardId/job-posts", "routes/job_posts.tsx"),
         route("job-boards/new", "routes/new_job_board.tsx"),

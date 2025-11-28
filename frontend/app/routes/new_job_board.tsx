@@ -1,8 +1,17 @@
-import { Form, Link, redirect } from "react-router";
+import { Form, Link, redirect, type ClientLoaderFunctionArgs } from "react-router";
 import type { Route } from "../+types/root";
 import { Field, FieldGroup, FieldLabel, FieldLegend } from "~/components/ui/field";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
+import { userContext } from "~/context";
+
+export async function clientLoader({context}) {
+  const me = context.get(userContext)
+  const isAdmin = me && me.is_admin
+  if (!isAdmin) {
+    return redirect("/admin-login")
+  }
+}
 
 export default function NewJobBoardForm(_: Route.ComponentProps) {
   return (

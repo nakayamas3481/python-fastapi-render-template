@@ -9,9 +9,10 @@ export default function DefaultLayout() {
     <nav style={{fontWeight: 'bolder', 
                  display: 'flex', 
                  justifyContent: 'space-between', 
-                 width: 150}}>
+                 width: 220}}>
       <NavLink to="/" style={navLinkStyle}>Home</NavLink>
       <NavLink to="/job-boards" style={navLinkStyle}>JobBoards</NavLink>
+      <NavLink to="/admin-logout" style={navLinkStyle}>Logout</NavLink>
     </nav>
     <Outlet/>
   </main>);

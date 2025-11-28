@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Date, ForeignKey, Integer, String
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import relationship
-
+from sqlalchemy.dialects.postgresql import JSONB
 
 Base = declarative_base()
 
@@ -29,3 +29,10 @@ class JobApplication(Base):
   resume_url = Column(String, nullable=True)
   job_post_id = Column(Integer, ForeignKey("job_posts.id"),  nullable=False)
   job_post = relationship("JobPost")
+  
+class JobApplicationAIEvaluation(Base):
+  __tablename__ = 'job_application_ai_evaluations'
+  id = Column(Integer, primary_key=True)
+  job_application_id = Column(Integer, ForeignKey("job_applications.id"), nullable=False)
+  overall_score = Column(Integer, nullable=False)
+  evaluation = Column(JSONB, nullable=False) 
