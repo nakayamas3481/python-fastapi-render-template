@@ -2,15 +2,16 @@ from datetime import date
 import os
 from typing import Annotated, List, Optional
 import uuid
-from fastapi import BackgroundTasks, Body, FastAPI, File, Form, Request, HTTPException, Response, UploadFile, status
+from fastapi import BackgroundTasks, Body, Depends, FastAPI, File, Form, Request, HTTPException, Response, UploadFile, status
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field, field_validator
+from ai import review_application
 from auth import AdminAuthzMiddleware, AdminSessionMiddleware, authenticate_admin, delete_admin_session, is_admin
 from config import settings
 from sqlalchemy import Date, create_engine, select, text
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, Session
 from db import get_db_session
 from emailer import send_email
 from job_application_tasks import evaluate_resume
@@ -205,6 +206,32 @@ async def admin_login(request: Request, response: Response) :
         httponly=True, secure=secure,
         samesite="Lax")
     return {}
+
+class JobPostForm(BaseModel):
+   title : str
+   description: str
+   job_board_id : int
+
+@app.post("/api/job-posts")
+async def api_create_job_post(job_post_form: Annotated[JobPostForm, Form()], db: Session = Depends(get_db_session)):
+   jobBoard = db.get(JobBoard, job_post_form.job_board_id)
+   if not jobBoard:
+      raise HTTPException(status_code=400)
+   jobPost = JobPost(title=job_post_form.title, 
+                     description=job_post_form.description, 
+                     job_board_id = job_post_form.job_board_id)
+   db.add(jobPost)
+   db.commit()
+   db.refresh(jobPost)
+   return jobPost
+
+class JobDescriptionForm(BaseModel):
+    description: str
+
+@app.post("/api/review-job-description")
+async def api_create_job_post(job_post_form: Annotated[JobDescriptionForm, Form()]):
+   reviewed_application = review_application(job_post_form.description)
+   return reviewed_application
 
 # @app.post("/add")
 # async def add(data: Dict[str, int]):

@@ -6,6 +6,7 @@ import {
   TableHeader, TableRow
 } from "~/components/ui/table";
 import { userContext } from "~/context";
+import type { Route } from "../+types/root";
 
 export async function clientLoader({context} : ClientLoaderFunctionArgs) {
   const me = context.get(userContext)

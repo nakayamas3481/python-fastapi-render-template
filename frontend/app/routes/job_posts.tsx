@@ -1,19 +1,31 @@
+import { Link } from "react-router";
+import { Button } from "~/components/ui/button";
+
 export async function clientLoader({params}) {
   const res = await fetch(`/api/job-boards/${params.jobBoardId}/job-posts`);
   const jobPosts = await res.json();
-  return {jobPosts}
+  return {jobBoardId: params.jobBoardId, jobPosts}
 }
 
-export default function jobPosts({loaderData}) {
+export default function JobPosts({loaderData}) {
+  const {jobBoardId, jobPosts} = loaderData;
   return (
     <div>
-      {loaderData.jobPosts.map(
-        (jobPost) =>
+      <div className="float-right">
+        <Button>
+          <Link to={`/job-boards/${jobBoardId}/add-job`}>Add New Job</Link>
+        </Button>
+      </div>
+      <div className="space-y-8">
+        {loaderData.jobPosts.map(
+          (jobPost) =>
             <div>
                 <h2 key={jobPost.id}>{jobPost.title}</h2> 
                 <p>{jobPost.description}</p>
             </div>
+          )
+        }
+      </div>      
+    </div>
   )
 }
-</div>
-  )}
