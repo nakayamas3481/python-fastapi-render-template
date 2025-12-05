@@ -3,15 +3,15 @@ import os
 from typing import Annotated, List, Optional
 import uuid
 from fastapi import BackgroundTasks, Body, Depends, FastAPI, File, Form, Request, HTTPException, Response, UploadFile, status
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field, field_validator
-from ai import review_application
+from ai import get_recommendation, get_vector_store, ingest_resume_for_recommendataions, review_application
 from auth import AdminAuthzMiddleware, AdminSessionMiddleware, authenticate_admin, delete_admin_session, is_admin
 from config import settings
 from sqlalchemy import Date, create_engine, select, text
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import Session
 from db import get_db_session
 from emailer import send_email
 from job_application_tasks import evaluate_resume
@@ -143,42 +143,43 @@ class JobApplicationForm(BaseModel):
     resume : UploadFile = File(...)
   
 @app.post("/api/job-applications")
-async def api_create_new_job_application(job_application_form: Annotated[JobApplicationForm, Form()],background_tasks: BackgroundTasks):
+async def api_create_new_job_application(job_application_form: Annotated[JobApplicationForm, Form()],background_tasks: BackgroundTasks,db: Session = Depends(get_db_session),vector_store = Depends(get_vector_store)):
     resume_contents = await job_application_form.resume.read()
     file_url = upload_file("company-resumes", \
                            job_application_form.resume.filename, \
                            resume_contents, \
                            job_application_form.resume.content_type)
-    with get_db_session() as session:
+    job_post = db.execute(
+        select(JobPost).where(JobPost.id == job_application_form.job_post_id)
+    ).scalar_one_or_none()
 
-        job_post = session.execute(
-            select(JobPost).where(JobPost.id == job_application_form.job_post_id)
-        ).scalar_one_or_none()
+    if job_post is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Job post not found")
 
-        if job_post is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Job post not found")
+    if job_post.close_date is not None and job_post.close_date < Date.today():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This job post is closed",
+    )
+    new_job_application = JobApplication(firtst_name=job_application_form.firtst_name, last_name=job_application_form.last_name, email=job_application_form.email,  job_post_id=job_application_form.job_post_id, resume_url=file_url)
 
-        if job_post.close_date is not None and job_post.close_date < Date.today():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="This job post is closed",
-        )
-        new_job_application = JobApplication(firtst_name=job_application_form.firtst_name, last_name=job_application_form.last_name, email=job_application_form.email,  job_post_id=job_application_form.job_post_id, resume_url=file_url)
+    db.add(new_job_application)
+    db.commit()
+    db.refresh(new_job_application)
 
-        session.add(new_job_application)
-        session.commit()
-        session.refresh(new_job_application)
+    background_tasks.add_task(
+        send_email,
+        new_job_application.email,
+        "Acknowledgement",
+        "We have received your job application"
+    )
+    #background_tasks.add_task(evaluate_resume, resume_contents, job_post.description, new_job_application.id)
 
-        background_tasks.add_task(
-            send_email,
-            new_job_application.email,
-            "Acknowledgement",
-            "We have received your job application"
-        )
-        background_tasks.add_task(evaluate_resume, resume_contents, job_post.description, new_job_application.id)
-        return new_job_application
+    background_tasks.add_task(ingest_resume_for_recommendataions, resume_contents, 
+                            file_url, new_job_application.id, vector_store)
+    return new_job_application
     
 class AdminLoginForm(BaseModel):
    username : str
@@ -232,6 +233,21 @@ class JobDescriptionForm(BaseModel):
 async def api_create_job_post(job_post_form: Annotated[JobDescriptionForm, Form()]):
    reviewed_application = review_application(job_post_form.description)
    return reviewed_application
+
+@app.get("/api/job-posts/{job_post_id}/recommend")
+async def api_recommend_resume(
+   job_post_id, 
+   db: Session = Depends(get_db_session),
+   vector_store = Depends(get_vector_store)):
+   
+   job_post = db.get(JobPost, job_post_id)
+   if not job_post:
+      raise HTTPException(status_code=400)
+   job_description = job_post.description
+   recommended_resume = get_recommendation(job_description, vector_store)   
+   application_id = recommended_resume.metadata["_id"]
+   job_application = db.get(JobApplication, application_id)
+   return job_application
 
 # @app.post("/add")
 # async def add(data: Dict[str, int]):
