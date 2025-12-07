@@ -7,6 +7,7 @@ export default [
         route("/admin-logout", "routes/admin_logout.tsx"),
         route("job-boards", "routes/job-boards.tsx"),
         route("job-boards/:jobBoardId/job-posts", "routes/job_posts.tsx"),
+        route("job-boards/:jobBoardId/job-posts/:jobPostId", "routes/job_post_detail.tsx"),
         route("job-boards/new", "routes/new_job_board.tsx"),
         route("job-boards/:jobBoardId/add-job", "routes/new_job.tsx"),
         route("job-boards/:jobBoardId/edit", "routes/edit_job_board.tsx")

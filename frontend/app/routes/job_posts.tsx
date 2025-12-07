@@ -20,8 +20,11 @@ export default function JobPosts({loaderData}) {
         {loaderData.jobPosts.map(
           (jobPost) =>
             <div>
-                <h2 key={jobPost.id}>{jobPost.title}</h2> 
-                <p>{jobPost.description}</p>
+                <h2 key={jobPost.id}>
+                  <Link to={`/job-boards/${jobBoardId}/job-posts/${jobPost.id}`}>
+                    {jobPost.title}
+                  </Link>
+                </h2> 
             </div>
           )
         }

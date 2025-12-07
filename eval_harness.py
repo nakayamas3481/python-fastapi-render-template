@@ -1,19 +1,6 @@
 import pandas as pd
 from ai import review_application
 
-# df = pd.read_csv("test/job_rewriting_tests.csv")
-
-# summaries = []
-# revised_descriptions = []
-
-# for row in df.itertuples():
-#     reviewed_application = review_application(row[1])
-#     summaries.append(reviewed_application.overall_summary)
-#     revised_descriptions.append(reviewed_application.revised_description)
-#     df["Summary"] = summaries
-#     df["Fixed Description"] = revised_descriptions
-
-
 def run_input(i, job_description):
     print(f"Processing row {i}")
     return review_application(job_description)

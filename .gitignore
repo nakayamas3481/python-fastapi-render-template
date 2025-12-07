@@ -9,6 +9,9 @@ __pycache__/
 # Distribution / packaging
 .Python
 build/
+# Keep built frontend assets for deployment
+!frontend/build/
+!frontend/build/**
 develop-eggs/
 dist/
 downloads/

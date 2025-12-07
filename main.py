@@ -18,6 +18,7 @@ from job_application_tasks import evaluate_resume
 from models import JobApplication, JobBoard
 from models import JobPost
 from file_storage import upload_file
+from sqlalchemy.orm import joinedload
 
 app = FastAPI()
 app.add_middleware(AdminAuthzMiddleware)
@@ -136,10 +137,11 @@ async def api_company_job_board(job_board_id):
      return jobPosts
   
 class JobApplicationForm(BaseModel):
-    firtst_name : str = Field(..., min_length=1, max_length=20)
+    model_config = {"populate_by_name": True}
+    first_name : str = Field(..., min_length=1, max_length=20, alias="firtst_name")
     last_name : str = Field(..., min_length=1, max_length=20)
     email : str = Field(..., min_length=1, max_length=40)
-    job_post_id : str = Field(..., min_length=1, max_length=20)
+    job_post_id : int = Field(..., ge=1)
     resume : UploadFile = File(...)
   
 @app.post("/api/job-applications")
@@ -163,7 +165,13 @@ async def api_create_new_job_application(job_application_form: Annotated[JobAppl
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="This job post is closed",
     )
-    new_job_application = JobApplication(firtst_name=job_application_form.firtst_name, last_name=job_application_form.last_name, email=job_application_form.email,  job_post_id=job_application_form.job_post_id, resume_url=file_url)
+    new_job_application = JobApplication(
+        firtst_name=job_application_form.first_name,
+        last_name=job_application_form.last_name,
+        email=job_application_form.email,
+        job_post_id=job_application_form.job_post_id,
+        resume_url=file_url,
+    )
 
     db.add(new_job_application)
     db.commit()
@@ -177,8 +185,14 @@ async def api_create_new_job_application(job_application_form: Annotated[JobAppl
     )
     #background_tasks.add_task(evaluate_resume, resume_contents, job_post.description, new_job_application.id)
 
-    background_tasks.add_task(ingest_resume_for_recommendataions, resume_contents, 
-                            file_url, new_job_application.id, vector_store)
+    background_tasks.add_task(
+        ingest_resume_for_recommendataions,
+        resume_contents,
+        file_url,
+        job_post.id,
+        vector_store,
+        {"job_application_id": new_job_application.id},
+    )
     return new_job_application
     
 class AdminLoginForm(BaseModel):
@@ -245,9 +259,38 @@ async def api_recommend_resume(
       raise HTTPException(status_code=400)
    job_description = job_post.description
    recommended_resume = get_recommendation(job_description, vector_store)   
-   application_id = recommended_resume.metadata["_id"]
+   application_id = recommended_resume.metadata.get("job_application_id") or recommended_resume.metadata["_id"]
    job_application = db.get(JobApplication, application_id)
    return job_application
+
+@app.get("/api/job-posts/{job_post_id}")
+async def api_job_post_detail(job_post_id: int, db: Session = Depends(get_db_session)):
+    job_post = db.get(JobPost, job_post_id)
+    if not job_post:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job post not found")
+
+    applications = (
+        db.query(JobApplication)
+        .filter(JobApplication.job_post_id == job_post_id)
+        .all()
+    )
+    applicants = [
+        {
+            "id": app.id,
+            "firtst_name": app.firtst_name,
+            "last_name": app.last_name,
+            "email": app.email,
+            "resume_url": app.resume_url,
+        }
+        for app in applications
+    ]
+    return {
+        "id": job_post.id,
+        "title": job_post.title,
+        "description": job_post.description,
+        "job_board_id": job_post.job_board_id,
+        "applicants": applicants,
+    }
 
 # @app.post("/add")
 # async def add(data: Dict[str, int]):

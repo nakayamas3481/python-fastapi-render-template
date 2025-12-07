@@ -187,7 +187,17 @@ def review_application(job_description: str) -> ReviewedApplication:
 
 def get_vector_store():
     embeddings = OpenAIEmbeddings(model="text-embedding-3-large", api_key=settings.OPENAI_API_KEY)
-    vector_store = QdrantVectorStore.from_existing_collection(embedding=embeddings, collection_name="resumes", path="qdrant_store")
+    if settings.PRODUCTION:
+        vector_store = QdrantVectorStore.from_existing_collection(
+            embedding=embeddings, 
+            collection_name="resumes", 
+            url=str(settings.QDRANT_URL), 
+            api_key=settings.QDRANT_API_KEY)
+    else:
+        vector_store = QdrantVectorStore.from_existing_collection(
+            embedding=embeddings, 
+            collection_name="resumes", 
+            path="qdrant_store")
     return vector_store
 
 def inmemory_vector_store():
@@ -200,13 +210,16 @@ def inmemory_vector_store():
     finally:
         client.close()
 
-def ingest_resume(resume_text, resume_url, resume_id, vector_store):
-    doc = Document(page_content=resume_text, metadata={"url": resume_url})
+def ingest_resume(resume_text, resume_url, resume_id, vector_store, extra_metadata: Optional[dict] = None):
+    metadata = {"url": resume_url, "_id": resume_id}
+    if extra_metadata:
+        metadata.update(extra_metadata)
+    doc = Document(page_content=resume_text, metadata=metadata)
     vector_store.add_documents(documents=[doc], ids=[resume_id])
 
-def ingest_resume_for_recommendataions(resume_content, resume_url, resume_id, vector_store):
-   resume_raw_text = extract_text_from_pdf_bytes(resume_content)
-   ingest_resume(resume_raw_text, resume_url, resume_id, vector_store)
+def ingest_resume_for_recommendataions(resume_content, resume_url, resume_id, vector_store, extra_metadata: Optional[dict] = None):
+    resume_raw_text = extract_text_from_pdf_bytes(resume_content)
+    ingest_resume(resume_raw_text, resume_url, resume_id, vector_store, extra_metadata=extra_metadata)
 
 def get_recommendation(job_description, vector_store):
     retriever = vector_store.as_retriever(search_kwargs={"k": 1})
