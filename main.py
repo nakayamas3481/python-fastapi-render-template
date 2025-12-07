@@ -177,12 +177,12 @@ async def api_create_new_job_application(job_application_form: Annotated[JobAppl
     db.commit()
     db.refresh(new_job_application)
 
-    background_tasks.add_task(
-        send_email,
-        new_job_application.email,
-        "Acknowledgement",
-        "We have received your job application"
-    )
+    # background_tasks.add_task(
+    #     send_email,
+    #     new_job_application.email,
+    #     "Acknowledgement",
+    #     "We have received your job application"
+    # )
     #background_tasks.add_task(evaluate_resume, resume_contents, job_post.description, new_job_application.id)
 
     background_tasks.add_task(
